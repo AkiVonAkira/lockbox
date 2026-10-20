@@ -1,8 +1,10 @@
 "use client";
 
+import { CalendarPlus, Clock, Copy, ExternalLink, Eye, EyeOff, KeyRound, Layers, Link2, Lock, RotateCw, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 
+import { type Status } from "../_lib/status";
 import { deleteShare, extendShare, rotatePin } from "./actions";
 
 export type AdminShare = {
@@ -11,87 +13,184 @@ export type AdminShare = {
   pin: string;
   url: string;
   itemCount: number;
+  views: number;
+  status: Status;
+  expired: boolean;
+  lastViewed: string | null;
   createdAt: string;
   expiresAt: string;
-  expired: boolean;
-  views: number;
-  lastViewedAt: string | null;
   lockedUntil: string | null;
 };
 
-const day = (iso: string) => new Date(iso).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
+const MASK = "••••••••••••";
+const STATUS_ICON = { ok: Clock, locked: Lock, expired: Clock } as const;
 
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
+/** Exact dates use the browser's timezone, so they render only after hydration. */
+const useMounted = () =>
+  useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+const date = (iso: string) => new Date(iso).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
+const dateTime = (iso: string) => new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+function IconButton({
+  label,
+  onClick,
+  danger,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
-      className="btn"
-      onClick={() =>
-        void navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        })
-      }
+      className={`ib ${danger ? "ib-danger" : ""}`}
+      aria-label={label}
+      data-tip={label}
+      disabled={disabled}
+      onClick={onClick}
     >
-      {copied ? "Copied" : label}
+      {children}
     </button>
   );
 }
 
-export function ShareRow({ share }: { share: AdminShare }) {
+export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: string) => void }) {
+  const mounted = useMounted();
   const [shown, setShown] = useState(false);
+  const [confirming, setConfirming] = useState<"delete" | "rotate" | null>(null);
   const [pending, start] = useTransition();
-  const run = (action: () => Promise<void>) => start(() => action());
+  const StatusIcon = STATUS_ICON[share.status.kind];
+
+  const copy = (text: string, done: string) =>
+    void navigator.clipboard.writeText(text).then(
+      () => notify(done),
+      () => notify("Copy failed"),
+    );
+  const run = (action: () => Promise<void>, done: string) =>
+    start(async () => {
+      await action();
+      setConfirming(null);
+      notify(done);
+    });
+
+  const statusTitle = !mounted
+    ? undefined
+    : share.status.kind === "locked" && share.lockedUntil
+      ? `Five wrong PINs in a row. Unlocks ${dateTime(share.lockedUntil)}.`
+      : `${share.expired ? "Expired" : "Expires"} ${date(share.expiresAt)}`;
 
   return (
-    <li className={`glass flex flex-col gap-2.5 px-4 py-3.5 ${share.expired ? "opacity-60" : ""}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-[14.5px] font-semibold">{share.title}</h2>
-        <span className="text-muted-foreground text-[12px]">
-          {share.itemCount} {share.itemCount === 1 ? "page" : "pages"} · made {day(share.createdAt)} ·{" "}
-          {share.expired ? `expired ${day(share.expiresAt)}` : `expires ${day(share.expiresAt)}`} · {share.views}{" "}
-          {share.views === 1 ? "view" : "views"}
-          {share.lastViewedAt && `, last ${day(share.lastViewedAt)}`}
-        </span>
-        {share.lockedUntil && <span className="notice py-0.5 text-[12px]">Locked after wrong PINs</span>}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <code className="text-muted-foreground min-w-0 truncate text-[12px]">{share.url}</code>
-        <CopyButton text={share.url} label="Copy link" />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <code className="min-w-[13ch] font-mono text-[13px] tracking-[.12em]" aria-label="PIN">
-          {shown ? share.pin : "••••••••••••"}
-        </code>
-        <button type="button" className="btn" onClick={() => setShown((s) => !s)}>
-          {shown ? "Hide PIN" : "Show PIN"}
-        </button>
-        <CopyButton text={share.pin} label="Copy PIN" />
-        <CopyButton text={`${share.url}\nPIN: ${share.pin}`} label="Copy both" />
-        <span className="flex-1" />
-        <Link href={`/admin/view/${share.id}`} className="btn">
-          Open
+    <li className={`glass flex flex-col gap-2.5 px-4 py-3.5 ${share.expired ? "opacity-70" : ""}`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Link href={`/admin/view/${share.id}`} className="title-link text-[14.5px] font-semibold">
+          {share.title}
         </Link>
-        <button type="button" className="btn" disabled={pending} onClick={() => run(() => extendShare(share.id))}>
-          {share.expired ? "Restore 30 days" : "Extend to 30 days"}
+        <span className={`pill pill-${share.status.kind}`} title={statusTitle}>
+          <StatusIcon size={12} aria-hidden />
+          {share.status.label}
+        </span>
+      </div>
+
+      <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+        <span className="inline-flex items-center gap-1.5">
+          <Layers size={13} aria-hidden />
+          {share.itemCount} {share.itemCount === 1 ? "page" : "pages"}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Eye size={13} aria-hidden />
+          {share.views} {share.views === 1 ? "view" : "views"}
+          {share.lastViewed && ` · last ${share.lastViewed}`}
+        </span>
+        {mounted && (
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarPlus size={13} aria-hidden />
+            made {date(share.createdAt)}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inset min-w-0 flex-[1_1_320px]">
+          <Link2 size={13} aria-hidden className="text-muted-foreground shrink-0" />
+          <a href={share.url} target="_blank" rel="noreferrer" className="share-url min-w-0 flex-1 truncate">
+            {share.url}
+          </a>
+          <IconButton label="Copy link" onClick={() => copy(share.url, "Link copied")}>
+            <Copy size={15} aria-hidden />
+          </IconButton>
+          <a href={share.url} target="_blank" rel="noreferrer" className="ib" aria-label="Open public page" data-tip="Open public page">
+            <ExternalLink size={15} aria-hidden />
+          </a>
+        </div>
+        <div className="inset">
+          <KeyRound size={13} aria-hidden className="text-muted-foreground shrink-0" />
+          <code className="min-w-[13ch] font-mono text-[13px] tracking-[.12em]" aria-label="PIN">
+            {shown ? share.pin : MASK}
+          </code>
+          <IconButton label={shown ? "Hide PIN" : "Show PIN"} onClick={() => setShown((s) => !s)}>
+            {shown ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
+          </IconButton>
+          <IconButton label="Copy PIN" onClick={() => copy(share.pin, "PIN copied")}>
+            <Copy size={15} aria-hidden />
+          </IconButton>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn btn-pri" onClick={() => copy(`${share.url}\nPIN: ${share.pin}`, "Link and PIN copied")}>
+          <Send size={13} aria-hidden />
+          Copy link + PIN
         </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={pending}
-          onClick={() => confirm("Give this share a new PIN? The old PIN stops working.") && run(() => rotatePin(share.id))}
-        >
-          New PIN
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger"
-          disabled={pending}
-          onClick={() => confirm(`Delete "${share.title}"? The link stops working.`) && run(() => deleteShare(share.id))}
-        >
-          Delete
-        </button>
+        <span className="flex-1" />
+        {confirming ? (
+          <span className="inline-flex flex-wrap items-center gap-2 text-[12px]">
+            <span className="text-destructive">
+              {confirming === "delete" ? "Delete? The link stops working." : "New PIN? The old one stops working."}
+            </span>
+            <button
+              type="button"
+              className="btn btn-confirm"
+              disabled={pending}
+              onClick={() =>
+                confirming === "delete"
+                  ? run(() => deleteShare(share.id), "Deleted")
+                  : run(async () => {
+                      await rotatePin(share.id);
+                      setShown(true);
+                    }, "New PIN set")
+              }
+            >
+              {confirming === "delete" ? "Delete" : "New PIN"}
+            </button>
+            <button type="button" className="btn" disabled={pending} onClick={() => setConfirming(null)}>
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <span className="flex">
+            <IconButton
+              label={share.expired ? "Restore for 30 days" : "Extend to 30 days"}
+              disabled={pending}
+              onClick={() => run(() => extendShare(share.id), share.expired ? "Restored for 30 days" : "Extended to 30 days")}
+            >
+              <CalendarPlus size={15} aria-hidden />
+            </IconButton>
+            <IconButton label="New PIN" disabled={pending} onClick={() => setConfirming("rotate")}>
+              <RotateCw size={15} aria-hidden />
+            </IconButton>
+            <IconButton label="Delete" danger disabled={pending} onClick={() => setConfirming("delete")}>
+              <Trash2 size={15} aria-hidden />
+            </IconButton>
+          </span>
+        )}
       </div>
     </li>
   );
