@@ -13,6 +13,8 @@ export const env = createEnv({
     LOCKBOX_KEY: z.string().optional(),
     // The agents' credential for POST /api/shares on lockbox.internal. Without it, uploads are refused.
     LOCKBOX_SERVICE_TOKEN: z.string().min(32).optional(),
+    // Astrarium's read-only credential for GET /api/stats on lockbox.internal. Without it, stats are refused.
+    LOCKBOX_STATS_TOKEN: z.string().min(32).optional(),
     // Where the links Lockbox hands out point. Defaults to https://lockbox.kayzel.com in src/server/links.ts.
     LOCKBOX_PUBLIC_URL: z.string().url().optional(),
     LOCKBOX_DEV_ADMIN: z.string().optional(),
@@ -27,6 +29,7 @@ export const env = createEnv({
     LOCKBOX_DATA_DIR: process.env.LOCKBOX_DATA_DIR,
     LOCKBOX_KEY: process.env.LOCKBOX_KEY,
     LOCKBOX_SERVICE_TOKEN: process.env.LOCKBOX_SERVICE_TOKEN,
+    LOCKBOX_STATS_TOKEN: process.env.LOCKBOX_STATS_TOKEN,
     LOCKBOX_PUBLIC_URL: process.env.LOCKBOX_PUBLIC_URL,
     LOCKBOX_DEV_ADMIN: process.env.LOCKBOX_DEV_ADMIN,
     NODE_ENV: process.env.NODE_ENV,

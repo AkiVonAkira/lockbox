@@ -115,6 +115,14 @@ export function createShares(db: Db, key: Buffer, now: () => Date = () => new Da
         }));
     },
 
+    /** How many shares exist and how many have not expired. No titles, ids, or PINs. */
+    counts() {
+      purge();
+      const expires = db.select({ expiresAt: shares.expiresAt }).from(shares).all();
+      const at = now();
+      return { total: expires.length, active: expires.filter((s) => s.expiresAt > at).length };
+    },
+
     /** The items without a PIN, for the admin preview. Expired shares open too. */
     peek(id: string) {
       const share = row(id);

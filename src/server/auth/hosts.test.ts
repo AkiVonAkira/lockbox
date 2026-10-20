@@ -27,6 +27,7 @@ describe("hosts", () => {
       "/signin/authentik",
       "/api/auth/callback/authentik",
       "/api/shares",
+      "/api/stats",
       "/api/s/x/unlock/more",
       "/s/x/y",
       "/anything",

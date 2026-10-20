@@ -76,6 +76,19 @@ describe("shares", () => {
     expect(store.list()).toEqual([]);
   });
 
+  test("counts every stored share and the unexpired ones", () => {
+    const { store, advance } = setup();
+    expect(store.counts()).toEqual({ total: 0, active: 0 });
+    store.create({ title: "short", items: [page], expiresInDays: 1 });
+    store.create({ title: "long", items: [page] });
+    expect(store.counts()).toEqual({ total: 2, active: 2 });
+    advance(DAY + 1);
+    expect(store.counts()).toEqual({ total: 2, active: 1 });
+    // The short one is purged; the 30-day one has expired by now but stays listed.
+    advance(PURGE_AFTER_MS);
+    expect(store.counts()).toEqual({ total: 1, active: 0 });
+  });
+
   test("a sealed value copied to another row does not open there", () => {
     const { db, store } = setup();
     const a = store.create({ title: "a", items: [page] });

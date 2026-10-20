@@ -8,6 +8,7 @@ Pages behind a PIN. An agent locks a set of pages, such as the HTML visuals from
 - **Items** render in sandboxed frames (`allow-scripts`, no `allow-same-origin`), so a page cannot read Lockbox, its cookies, or the viewer's session. Each frame gets T3's theme variables in Stillwater colors, so pages written for T3's `html_render` look as they did in the thread. Only HTML items exist now; the `Item` union in `src/domain/share.ts` is where another kind goes.
 - **Admin** is `https://lockbox.internal/admin`, signed in through Authentik, for the `Admin` group only. The app checks the group claim as well as Authentik's binding. It lists every share with its link and PIN, and can open, extend, re-PIN, or delete one.
 - **Uploads** are `POST /api/shares` on `lockbox.internal` with `LOCKBOX_SERVICE_TOKEN` as a bearer token. The public name answers 404 for it, and for everything but the PIN pages.
+- **Stats** are `GET /api/stats` on `lockbox.internal` with `LOCKBOX_STATS_TOKEN`, a separate read-only token. It answers `{ total, active }` for Astrarium's tile.
 - **At rest**, each PIN and each share's items are sealed with AES-256-GCM under `LOCKBOX_KEY`, bound to the share's id. The database file or a backup alone opens nothing. Titles, dates, and counts are plain.
 - Shares expire after 30 days by default. Expired shares stay in the admin list for 30 more days, so one can be extended, then go.
 
