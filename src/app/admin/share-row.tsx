@@ -149,6 +149,10 @@ export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: 
           <Send size={13} aria-hidden />
           Copy link + PIN
         </button>
+        <Link href={`/admin/view/${share.id}`} className="btn">
+          <Eye size={13} aria-hidden />
+          Admin view
+        </Link>
         <span className="flex-1" />
         {confirming ? (
           <span className="inline-flex flex-wrap items-center gap-2 text-[12px]">
