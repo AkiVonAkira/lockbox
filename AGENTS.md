@@ -8,6 +8,7 @@ Pages behind a PIN, at `lockbox.kayzel.com` for viewers and `lockbox.internal` f
 - Never add `allow-same-origin` to the item frames. Pages run their own scripts.
 - `LOCKBOX_KEY` seals every PIN and item. Never rotate or remove it on the deployed app: every share becomes unreadable.
 - Commit by path, `git commit -- <paths>`, as the human author. Never add an agent trailer or footer.
+- Bun loads this checkout's `.env.local` into `process.env`, and its `LOCKBOX_SERVICE_TOKEN` is the dev server's, not the deployed one. `scripts/share.ts` ignores values that came from those files. On 2026-10-21 it didn't, and every upload got a 401. When an upload gets a 401, first check which token the script sent, before you restart or rotate anything on Coolify.
 - No Python. Scripts are TypeScript or JavaScript run with `bun` or `node`.
 - Install with `npm ci`. Before you push, run `npm test` and `SKIP_ENV_VALIDATION=1 npm run build`, as the Dockerfile does.
 - Auto-deploy is off. After a push to `main`, deploy from a infra checkout: `bun .agents/skills/infra-coolify/scripts/coolify-api.mjs deploy <uuid> --wait` with the UUID from the Coolify guide. Then check `https://lockbox.internal/api/healthz` and `https://lockbox.kayzel.com/api/healthz`.
