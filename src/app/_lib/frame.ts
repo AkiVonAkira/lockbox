@@ -73,13 +73,25 @@ const HEAD =
 const blankNonMarkup = (html: string) =>
   html.replace(/<!--[\s\S]*?(?:-->|$)|<(script|style|textarea|title|template|noscript)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, (m) => " ".repeat(m.length));
 
+/**
+ * The offset just past the first `<name>` or `<name ...>` open tag, or -1. A linear scan: only the
+ * first start can match, because a `>` after any later start is also after the first one. A regex
+ * like `<head(?:\s[^>]*)?>` rescans from every start and is quadratic on `<head ` repeated.
+ */
+const openTagEnd = (scan: string, name: string) => {
+  const start = new RegExp(`<${name}(?=[\\s>])`, "i").exec(scan);
+  if (!start) return -1;
+  const close = scan.indexOf(">", start.index + name.length + 1);
+  return close === -1 ? -1 : close + 1;
+};
+
 /** The page with Lockbox's head inserted first, so the page's own styles come after and win. */
 export function frameDocument(html: string): string {
   const scan = blankNonMarkup(html);
-  const head = /<head(?:\s[^>]*)?>/i.exec(scan);
-  if (head) return html.slice(0, head.index + head[0].length) + HEAD + html.slice(head.index + head[0].length);
-  const root = /<html(?:\s[^>]*)?>/i.exec(scan);
-  if (root) return `${html.slice(0, root.index + root[0].length)}<head>${HEAD}</head>${html.slice(root.index + root[0].length)}`;
+  const head = openTagEnd(scan, "head");
+  if (head !== -1) return html.slice(0, head) + HEAD + html.slice(head);
+  const root = openTagEnd(scan, "html");
+  if (root !== -1) return `${html.slice(0, root)}<head>${HEAD}</head>${html.slice(root)}`;
   const doctype = /^\s*<!doctype[^>]*>/i.exec(html);
   if (doctype) return `${html.slice(0, doctype[0].length)}<head>${HEAD}</head>${html.slice(doctype[0].length)}`;
   return `<!doctype html><head>${HEAD}</head>${html}`;
