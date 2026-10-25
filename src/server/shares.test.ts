@@ -23,7 +23,7 @@ describe("shares", () => {
     const row = db.select().from(table).get()!;
     expect(row.pin).not.toContain(pin);
     expect(row.items).not.toContain("secret page");
-    expect(store.unlock(id, pin)).toEqual({ status: "ok", title: "Spawning", items: [page] });
+    expect(store.unlock(id, pin)).toMatchObject({ status: "ok", title: "Spawning", items: [page] });
     expect(store.list()[0]).toMatchObject({ id, pin, views: 1 });
   });
 
@@ -53,6 +53,27 @@ describe("shares", () => {
     advance(DAY + 1);
     expect(store.unlock(id, pin)).toEqual({ status: "missing" });
     store.extend(id, 30);
+    expect(store.unlock(id, pin).status).toBe("ok");
+  });
+
+  test("extend never shortens a share, and clears a lockout", () => {
+    const { store } = setup();
+    const { id, pin, expiresAt } = store.create({ title: "t", items: [page], expiresInDays: 365 });
+    expect(store.extend(id, 30)).toEqual(expiresAt);
+    for (let i = 0; i < MAX_ATTEMPTS; i++) store.unlock(id, "nope");
+    expect(store.unlock(id, pin).status).toBe("locked");
+    expect(store.extend(id, 400)!.getTime()).toBeGreaterThan(expiresAt.getTime());
+    expect(store.unlock(id, pin)).toMatchObject({ status: "ok" });
+    expect(store.extend("AAAAAAAAAAAAAAAAAAAAAA", 30)).toBeNull();
+  });
+
+  test("clearing a lockout lets the right PIN in again", () => {
+    const { store } = setup();
+    const { id, pin } = store.create({ title: "t", items: [page] });
+    for (let i = 0; i < MAX_ATTEMPTS; i++) store.unlock(id, "nope");
+    expect(store.list()[0]!.lockedUntil).not.toBeNull();
+    store.clearLockout(id);
+    expect(store.list()[0]!.lockedUntil).toBeNull();
     expect(store.unlock(id, pin).status).toBe("ok");
   });
 
@@ -93,7 +114,11 @@ describe("shares", () => {
     const { db, store } = setup();
     const a = store.create({ title: "a", items: [page] });
     const b = store.create({ title: "b", items: [{ ...page, html: "<p>b</p>" }] });
-    const rowA = db.select().from(table).all().find((r) => r.id === a.id)!;
+    const rowA = db
+      .select()
+      .from(table)
+      .all()
+      .find((r) => r.id === a.id)!;
     db.update(table).set({ pin: rowA.pin }).run();
     expect(() => store.unlock(b.id, a.pin)).toThrow();
   });

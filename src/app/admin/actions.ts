@@ -16,6 +16,11 @@ export async function extendShare(id: string) {
   revalidatePath("/admin");
 }
 
+export async function clearLockout(id: string) {
+  sharesStore().clearLockout(await adminShare(id));
+  revalidatePath("/admin");
+}
+
 export async function rotatePin(id: string) {
   sharesStore().rotatePin(await adminShare(id));
   revalidatePath("/admin");
