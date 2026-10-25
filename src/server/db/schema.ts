@@ -17,5 +17,3 @@ export const shares = sqliteTable("shares", {
   failedAttempts: integer("failed_attempts").notNull().default(0),
   lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
 });
-
-export type ShareRow = typeof shares.$inferSelect;

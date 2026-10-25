@@ -14,9 +14,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
+/** The middleware's body limit is 21 MB (next.config.js). Past it the upload fails with no useful answer, so stop here first. */
+const MAX_UPLOAD_BYTES = 20_000_000;
+
 /** Removes the theme style and bootstrap script T3's html_render puts after <head>. */
 export function stripT3(html: string) {
-  return html.replace(/<style id="t3-theme">[\s\S]*?<\/style><script>\(function\(\)\{var s=document\.getElementById\("t3-theme"\)[\s\S]*?<\/script>/, "");
+  return html.replace(
+    /<style id="t3-theme">[\s\S]*?<\/style><script>\(function\(\)\{var s=document\.getElementById\("t3-theme"\)[\s\S]*?<\/script>/,
+    "",
+  );
 }
 
 function readEnvValue(file: string, name: string) {
@@ -31,7 +37,16 @@ function readEnvValue(file: string, name: string) {
 }
 
 /** The files Bun reads into process.env from the working directory. */
-const BUN_DOTENV = [".env", ".env.local", ".env.development", ".env.production", ".env.test", ".env.development.local", ".env.production.local", ".env.test.local"];
+const BUN_DOTENV = [
+  ".env",
+  ".env.local",
+  ".env.development",
+  ".env.production",
+  ".env.test",
+  ".env.development.local",
+  ".env.production.local",
+  ".env.test.local",
+];
 
 /** A variable set in the shell, or undefined when it is unset or Bun took it from a dotenv file in the working directory. */
 function shellEnv(name: string) {
@@ -41,7 +56,12 @@ function shellEnv(name: string) {
 }
 
 function infraDir() {
-  const candidates = [shellEnv("INFRA_DIR"), join(homedir(), "Projects", "infra"), join(homedir(), "Projects", "Infra"), "C:/Projects/Infra"];
+  const candidates = [
+    shellEnv("INFRA_DIR"),
+    join(homedir(), "Projects", "infra"),
+    join(homedir(), "Projects", "Infra"),
+    "C:/Projects/Infra",
+  ];
   return candidates.find((d): d is string => Boolean(d && existsSync(join(d, ".git"))));
 }
 
@@ -72,15 +92,27 @@ async function main() {
   const caFile = shellEnv("LOCKBOX_CA") ?? (infra ? join(infra, "hosts/apps/projects/coolify/caddy-root.crt") : undefined);
   const tls = api.startsWith("https://") && caFile && existsSync(caFile) ? { ca: readFileSync(caFile, "utf8") } : undefined;
 
+  const body = JSON.stringify({
+    title: manifest.title,
+    items,
+    ...(manifest.expiresInDays ? { expiresInDays: manifest.expiresInDays } : {}),
+  });
+  const bytes = Buffer.byteLength(body);
+  if (bytes > MAX_UPLOAD_BYTES) {
+    throw new Error(
+      `The pages are ${(bytes / 1e6).toFixed(1)} MB; Lockbox takes ${MAX_UPLOAD_BYTES / 1e6} MB in one share. Split them into two shares.`,
+    );
+  }
+
   const response = await fetch(`${api}/api/shares`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ title: manifest.title, items, ...(manifest.expiresInDays ? { expiresInDays: manifest.expiresInDays } : {}) }),
+    body,
     ...(tls ? { tls } : {}),
-  } as RequestInit);
-  const body = (await response.json().catch(() => null)) as unknown;
-  if (!response.ok) throw new Error(`Lockbox answered ${response.status}: ${JSON.stringify(body)}`);
-  console.log(JSON.stringify(body, null, 2));
+  });
+  const answer = (await response.json().catch(() => null)) as unknown;
+  if (!response.ok) throw new Error(`Lockbox answered ${response.status}: ${JSON.stringify(answer)}`);
+  console.log(JSON.stringify(answer, null, 2));
 }
 
 if (import.meta.main) await main();
