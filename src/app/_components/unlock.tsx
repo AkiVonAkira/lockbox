@@ -93,7 +93,6 @@ export function Unlock({ id }: { id: string }) {
               autoCorrect="off"
               spellCheck={false}
               maxLength={64}
-              disabled={locked}
               value={pin}
               onChange={(e) => setPin(e.target.value)}
             />
@@ -107,7 +106,7 @@ export function Unlock({ id }: { id: string }) {
                 Too many wrong PINs. Try again in {wait(left)}.
               </p>
             )}
-            <button type="submit" className="btn btn-pri py-2 text-[13px]" disabled={state.step === "busy" || locked || !pin}>
+            <button type="submit" className="btn btn-pri py-2 text-[13px]" disabled={state.step === "busy" || !pin}>
               {state.step === "busy" ? "Opening…" : "Open"}
             </button>
           </>

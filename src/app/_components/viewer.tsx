@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { type Item } from "~/domain/share";
 import { frameDocument, readHeight } from "../_lib/frame";
@@ -55,6 +55,7 @@ function Expiry({ iso }: { iso: string }) {
  */
 export function Viewer({ title, items, expiresAt, back }: { title: string; items: Item[]; expiresAt?: string; back?: React.ReactNode }) {
   const [index, setIndex] = useState(0);
+  const ids = useId();
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const item = items[index] ?? items[0];
 
@@ -90,6 +91,8 @@ export function Viewer({ title, items, expiresAt, back }: { title: string; items
                 }}
                 type="button"
                 role="tab"
+                id={`${ids}-tab-${i}`}
+                aria-controls={`${ids}-panel`}
                 aria-selected={i === index}
                 tabIndex={i === index ? 0 : -1}
                 onClick={() => select(i)}
@@ -102,7 +105,13 @@ export function Viewer({ title, items, expiresAt, back }: { title: string; items
         )}
       </header>
       {/* Keyed by tab, so switching starts the page fresh rather than reusing the last frame's height. */}
-      {item?.kind === "html" && <HtmlFrame key={index} item={item} />}
+      <div
+        id={`${ids}-panel`}
+        role={items.length > 1 ? "tabpanel" : undefined}
+        aria-labelledby={items.length > 1 ? `${ids}-tab-${index}` : undefined}
+      >
+        {item?.kind === "html" && <HtmlFrame key={index} item={item} />}
+      </div>
     </main>
   );
 }

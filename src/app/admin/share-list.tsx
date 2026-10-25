@@ -25,7 +25,7 @@ export function ShareList({ shares, empty }: { shares: AdminShare[]; empty: stri
 
   return (
     <>
-      {shares.length >= SEARCH_FROM && (
+      {(shares.length >= SEARCH_FROM || query) && (
         <label className="inset max-w-[320px] py-1.5">
           <Search size={13} aria-hidden className="text-muted-foreground shrink-0" />
           <input
