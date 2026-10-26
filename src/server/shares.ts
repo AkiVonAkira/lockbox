@@ -1,4 +1,4 @@
-import { desc, eq, lt } from "drizzle-orm";
+import { count, desc, eq, gt, lt } from "drizzle-orm";
 
 import { Item, NewShare } from "~/domain/share";
 import { generateId, generatePin, open, sameSecret, seal } from "./crypto";
@@ -13,7 +13,7 @@ export const LOCKOUT_MS = 15 * 60_000;
 export const PURGE_AFTER_MS = 30 * DAY;
 
 export type Unlock =
-  | { status: "ok"; title: string; items: Item[] }
+  | { status: "ok"; title: string; items: Item[]; expiresAt: Date }
   | { status: "missing" }
   | { status: "wrong"; remaining: number }
   | { status: "locked"; until: Date };
@@ -90,7 +90,7 @@ export function createShares(db: Db, key: Buffer, now: () => Date = () => new Da
           .set({ failedAttempts: 0, lockedUntil: null, views: share.views + 1, lastViewedAt: at })
           .where(eq(shares.id, id))
           .run();
-        return { status: "ok", title: share.title, items: readItems(id, share.items) } as const;
+        return { status: "ok", title: share.title, items: readItems(id, share.items), expiresAt: share.expiresAt } as const;
       });
     },
 
@@ -118,9 +118,9 @@ export function createShares(db: Db, key: Buffer, now: () => Date = () => new Da
     /** How many shares exist and how many have not expired. No titles, ids, or PINs. */
     counts() {
       purge();
-      const expires = db.select({ expiresAt: shares.expiresAt }).from(shares).all();
-      const at = now();
-      return { total: expires.length, active: expires.filter((s) => s.expiresAt > at).length };
+      const total = db.select({ n: count() }).from(shares).get()?.n ?? 0;
+      const active = db.select({ n: count() }).from(shares).where(gt(shares.expiresAt, now())).get()?.n ?? 0;
+      return { total, active };
     },
 
     /** The items without a PIN, for the admin preview. Expired shares open too. */
@@ -129,12 +129,19 @@ export function createShares(db: Db, key: Buffer, now: () => Date = () => new Da
       return share ? { title: share.title, items: readItems(id, share.items) } : null;
     },
 
-    /** Moves the expiry to `days` from now, and clears a lockout. */
+    /** Moves the expiry to `days` from now, unless it is already later, and clears a lockout. */
     extend(id: string, days: number) {
-      db.update(shares)
-        .set({ expiresAt: new Date(now().getTime() + days * DAY), lockedUntil: null, failedAttempts: 0 })
-        .where(eq(shares.id, id))
-        .run();
+      const share = row(id);
+      if (!share) return null;
+      const target = new Date(now().getTime() + days * DAY);
+      const expiresAt = share.expiresAt > target ? share.expiresAt : target;
+      db.update(shares).set({ expiresAt, lockedUntil: null, failedAttempts: 0 }).where(eq(shares.id, id)).run();
+      return expiresAt;
+    },
+
+    /** Ends a lockout early, for a viewer who mistyped and asked. */
+    clearLockout(id: string) {
+      db.update(shares).set({ lockedUntil: null, failedAttempts: 0 }).where(eq(shares.id, id)).run();
     },
 
     /** A new PIN, so the old one stops working. */

@@ -3,6 +3,7 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { DEFAULT_TTL_DAYS } from "~/domain/share";
 import { isAdmin } from "~/server/auth";
 import { sharesStore } from "~/server/db";
 import { shareUrl } from "~/server/links";
@@ -38,6 +39,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         views: s.views,
         status,
         expired: status.kind === "expired",
+        extendable: s.expiresAt.getTime() - now < DEFAULT_TTL_DAYS * 86_400_000,
         lastViewed: s.lastViewedAt ? `${span(now - s.lastViewedAt.getTime())} ago` : null,
         createdAt: s.createdAt.toISOString(),
         expiresAt: s.expiresAt.toISOString(),

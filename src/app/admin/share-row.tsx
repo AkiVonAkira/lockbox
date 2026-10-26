@@ -1,11 +1,26 @@
 "use client";
 
-import { CalendarPlus, Clock, Copy, ExternalLink, Eye, EyeOff, KeyRound, Layers, Link2, Lock, RotateCw, Send, Trash2 } from "lucide-react";
+import {
+  CalendarPlus,
+  Clock,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Layers,
+  Link2,
+  Lock,
+  LockOpen,
+  RotateCw,
+  Send,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useState, useSyncExternalStore, useTransition } from "react";
 
 import { type Status } from "../_lib/status";
-import { deleteShare, extendShare, rotatePin } from "./actions";
+import { clearLockout, deleteShare, extendShare, rotatePin } from "./actions";
 
 export type AdminShare = {
   id: string;
@@ -16,6 +31,8 @@ export type AdminShare = {
   views: number;
   status: Status;
   expired: boolean;
+  /** Fewer than DEFAULT_TTL_DAYS left, so Extend moves the expiry. */
+  extendable: boolean;
   lastViewed: string | null;
   createdAt: string;
   expiresAt: string;
@@ -62,7 +79,7 @@ function IconButton({
   );
 }
 
-export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: string) => void }) {
+export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: string, failed?: boolean) => void }) {
   const mounted = useMounted();
   const [shown, setShown] = useState(false);
   const [confirming, setConfirming] = useState<"delete" | "rotate" | null>(null);
@@ -72,11 +89,17 @@ export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: 
   const copy = (text: string, done: string) =>
     void navigator.clipboard.writeText(text).then(
       () => notify(done),
-      () => notify("Copy failed"),
+      () => notify("Copy failed", true),
     );
+  // A failed action (a session that ran out, a share another tab deleted) says so and keeps the confirm open.
   const run = (action: () => Promise<void>, done: string) =>
     start(async () => {
-      await action();
+      try {
+        await action();
+      } catch {
+        notify("That did not work. Reload and try again.", true);
+        return;
+      }
       setConfirming(null);
       notify(done);
     });
@@ -180,9 +203,14 @@ export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: 
           </span>
         ) : (
           <span className="flex">
+            {share.status.kind === "locked" && (
+              <IconButton label="Unlock now" disabled={pending} onClick={() => run(() => clearLockout(share.id), "Unlocked")}>
+                <LockOpen size={15} aria-hidden />
+              </IconButton>
+            )}
             <IconButton
-              label={share.expired ? "Restore for 30 days" : "Extend to 30 days"}
-              disabled={pending}
+              label={share.expired ? "Restore for 30 days" : share.extendable ? "Extend to 30 days" : "More than 30 days left"}
+              disabled={pending || !share.extendable}
               onClick={() => run(() => extendShare(share.id), share.expired ? "Restored for 30 days" : "Extended to 30 days")}
             >
               <CalendarPlus size={15} aria-hidden />

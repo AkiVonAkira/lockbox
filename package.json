@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "check": "next lint && tsc --noEmit",
+    "check": "eslint . && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "dev": "next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
-    "lint": "next lint",
+    "lint": "eslint .",
     "start": "next start",
-    "test": "bun test src",
+    "test": "bun test src scripts",
     "typecheck": "tsc --noEmit"
   },
   "packageManager": "npm@10.9.9",

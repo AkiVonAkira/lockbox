@@ -1,6 +1,6 @@
 import { env } from "~/env";
-import { sameSecret } from "~/server/crypto";
 import { sharesStore } from "~/server/db";
+import { hasBearer, noStore } from "~/server/http";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +9,6 @@ export const dynamic = "force-dynamic";
  * LOCKBOX_STATS_TOKEN as a bearer token. That token reads counts and nothing else, so it cannot upload.
  */
 export function GET(request: Request) {
-  const token = /^Bearer (.+)$/.exec(request.headers.get("authorization") ?? "")?.[1];
-  if (!env.LOCKBOX_STATS_TOKEN || !token || !sameSecret(token, env.LOCKBOX_STATS_TOKEN)) {
-    return Response.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-  }
-  return Response.json(sharesStore().counts(), { headers: { "Cache-Control": "no-store" } });
+  if (!hasBearer(request, env.LOCKBOX_STATS_TOKEN)) return noStore({ error: "unauthorized" }, 401);
+  return noStore(sharesStore().counts());
 }

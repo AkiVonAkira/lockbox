@@ -2,12 +2,11 @@ import { z } from "zod";
 
 import { ShareId } from "~/domain/share";
 import { sharesStore } from "~/server/db";
+import { noStore as json } from "~/server/http";
 
 export const dynamic = "force-dynamic";
 
 const Body = z.object({ pin: z.string().min(1).max(64) });
-
-const json = (body: unknown, status: number) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 /** The only route that returns a share's items, and only for the right PIN. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const result = sharesStore().unlock(id.data, body.data.pin);
   switch (result.status) {
     case "ok":
-      return json({ title: result.title, items: result.items }, 200);
+      return json({ title: result.title, items: result.items, expiresAt: result.expiresAt.toISOString() }, 200);
     case "missing":
       return json({ error: "missing" }, 404);
     case "wrong":

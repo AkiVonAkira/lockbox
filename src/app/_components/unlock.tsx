@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { type Item } from "~/domain/share";
 import { Viewer } from "./viewer";
@@ -8,13 +8,37 @@ import { Viewer } from "./viewer";
 type State =
   | { step: "pin"; message?: string }
   | { step: "busy" }
-  | { step: "open"; title: string; items: Item[] }
+  | { step: "locked"; until: number }
+  | { step: "open"; title: string; items: Item[]; expiresAt?: string }
   | { step: "gone" };
+
+/** Time left in a lockout, to the minute, so the alert changes once a minute and not every tick. */
+const wait = (ms: number) => (ms < 60_000 ? "under a minute" : `${Math.ceil(ms / 60_000)} min`);
+
+/** Ticks once a second while a lockout runs, and hands the form back when it ends. */
+function useLockout(state: State, release: () => void) {
+  const [now, setNow] = useState(() => Date.now());
+  const until = state.step === "locked" ? state.until : null;
+  useEffect(() => {
+    if (until === null) return;
+    const tick = () => {
+      const at = Date.now();
+      setNow(at);
+      if (at >= until) release();
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [until, release]);
+  return until === null ? null : until - now;
+}
 
 /** Asks for the PIN, and only then fetches the share. The page itself carries nothing of it. */
 export function Unlock({ id }: { id: string }) {
   const [state, setState] = useState<State>({ step: "pin" });
   const [pin, setPin] = useState("");
+  const release = useCallback(() => setState({ step: "pin" }), []);
+  const left = useLockout(state, release);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -26,26 +50,26 @@ export function Unlock({ id }: { id: string }) {
       body: JSON.stringify({ pin: pin.trim() }),
     }).catch(() => null);
     const body = (await response?.json().catch(() => null)) as
-      | { title: string; items: Item[] }
-      | { error: string; remaining?: number; until?: string }
-      | null;
+      { title: string; items: Item[]; expiresAt?: string } | { error: string; remaining?: number; until?: string } | null;
     if (response?.ok && body && "items" in body) {
       setPin("");
-      setState({ step: "open", title: body.title, items: body.items });
+      setState({ step: "open", title: body.title, items: body.items, expiresAt: body.expiresAt });
       document.title = `${body.title} · Lockbox`;
     } else if (response?.status === 404) {
       setState({ step: "gone" });
     } else if (response?.status === 401 && body && "remaining" in body) {
+      setPin("");
       setState({ step: "pin", message: `Wrong PIN. ${body.remaining} ${body.remaining === 1 ? "try" : "tries"} left before it locks.` });
     } else if (response?.status === 429 && body && "until" in body && body.until) {
-      const at = new Date(body.until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      setState({ step: "pin", message: `Too many wrong PINs. Try again after ${at}.` });
+      setPin("");
+      setState({ step: "locked", until: new Date(body.until).getTime() });
     } else {
       setState({ step: "pin", message: "Lockbox did not answer. Try again." });
     }
   }
 
-  if (state.step === "open") return <Viewer title={state.title} items={state.items} />;
+  if (state.step === "open") return <Viewer title={state.title} items={state.items} expiresAt={state.expiresAt} />;
+  const locked = state.step === "locked";
 
   return (
     <main className="grid min-h-dvh place-items-center p-6">
@@ -75,6 +99,11 @@ export function Unlock({ id }: { id: string }) {
             {state.step === "pin" && state.message && (
               <p role="alert" className="notice">
                 {state.message}
+              </p>
+            )}
+            {locked && left !== null && (
+              <p role="alert" className="notice">
+                Too many wrong PINs. Try again in {wait(left)}.
               </p>
             )}
             <button type="submit" className="btn btn-pri py-2 text-[13px]" disabled={state.step === "busy" || !pin}>

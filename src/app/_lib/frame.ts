@@ -71,7 +71,9 @@ const HEAD =
  * a comment is never taken for the real one and offsets still line up.
  */
 const blankNonMarkup = (html: string) =>
-  html.replace(/<!--[\s\S]*?(?:-->|$)|<(script|style|textarea|title|template|noscript)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, (m) => " ".repeat(m.length));
+  html.replace(/<!--[\s\S]*?(?:-->|$)|<(script|style|textarea|title|template|noscript)\b[\s\S]*?(?:<\/\1\s*>|$)/gi, (m) =>
+    " ".repeat(m.length),
+  );
 
 /**
  * The offset just past the first `<name>` or `<name ...>` open tag, or -1. A linear scan: only the
