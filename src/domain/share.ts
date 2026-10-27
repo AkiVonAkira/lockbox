@@ -27,7 +27,7 @@ export type NewShare = z.input<typeof NewShare>;
 /** A share id from a URL: 16 bytes in base64url. Anything else is not looked up. */
 export const ShareId = z.string().regex(/^[A-Za-z0-9_-]{22}$/);
 
-/** A share as one Discord message: the link stays clickable and the PIN sits in a code block with a copy button. */
+/** A share as one Discord message: the link, a blank line, then the PIN in a code block, so the link stays clickable and the PIN gets a copy button. */
 export function shareMessage(url: string, pin: string) {
-  return `${url}\n\`\`\`${pin}\`\`\``;
+  return `${url}\n\n\`\`\`${pin}\`\`\``;
 }
