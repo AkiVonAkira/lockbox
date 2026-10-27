@@ -1,4 +1,5 @@
-// Locks pages in Lockbox and prints the link and PIN: `bun scripts/share.ts <manifest.json>`.
+// Locks pages in Lockbox and prints the link and PIN: `bun scripts/share.ts <manifest.json>`. The output also has
+// `message`, the link and PIN as one Discord message, and `admin`, the share's admin page.
 //
 // The manifest is { "title": "...", "expiresInDays"?: 30, "items": [{ "title": "...", "file": "page.html", "height"?: 900 }] }.
 // Files are relative to the manifest. A T3 html_render attachment (~/.t3/userdata/attachments/<thread>-<id>-html.html)
@@ -13,6 +14,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+
+import { shareMessage } from "../src/domain/share";
 
 /** The middleware's body limit is 21 MB (next.config.js). Past it the upload fails with no useful answer, so stop here first. */
 const MAX_UPLOAD_BYTES = 20_000_000;
@@ -110,9 +113,10 @@ async function main() {
     body,
     ...(tls ? { tls } : {}),
   });
-  const answer = (await response.json().catch(() => null)) as unknown;
-  if (!response.ok) throw new Error(`Lockbox answered ${response.status}: ${JSON.stringify(answer)}`);
-  console.log(JSON.stringify(answer, null, 2));
+  const answer = (await response.json().catch(() => null)) as { id: string; url: string; pin: string } | null;
+  if (!response.ok || !answer) throw new Error(`Lockbox answered ${response.status}: ${JSON.stringify(answer)}`);
+  const output = { ...answer, admin: `${api}/admin/view/${answer.id}`, message: shareMessage(answer.url, answer.pin) };
+  console.log(JSON.stringify(output, null, 2));
 }
 
 if (import.meta.main) await main();

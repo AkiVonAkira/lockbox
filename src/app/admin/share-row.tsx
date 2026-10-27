@@ -19,6 +19,8 @@ import {
 import Link from "next/link";
 import { useState, useSyncExternalStore, useTransition } from "react";
 
+import { shareMessage } from "~/domain/share";
+
 import { type Status } from "../_lib/status";
 import { clearLockout, deleteShare, extendShare, rotatePin } from "./actions";
 
@@ -168,7 +170,7 @@ export function ShareRow({ share, notify }: { share: AdminShare; notify: (text: 
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-pri" onClick={() => copy(`${share.url}\nPIN: ${share.pin}`, "Link and PIN copied")}>
+        <button type="button" className="btn btn-pri" onClick={() => copy(shareMessage(share.url, share.pin), "Link and PIN copied")}>
           <Send size={13} aria-hidden />
           Copy link + PIN
         </button>
