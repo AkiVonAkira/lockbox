@@ -21,9 +21,9 @@ const EMPTY: Record<Filter, string> = {
   all: "No shares yet. Ask an agent to lock a visual.",
 };
 
-/** Every share with its link and PIN. Served on lockbox.internal only, to the Authentik Admin group. */
+/** Every share with its link and PIN. Served on the admin URL only, to the admin group. */
 export default async function Admin({ searchParams }: { searchParams: Promise<{ show?: string | string[] }> }) {
-  if (!(await isAdmin())) redirect("/signin/authentik?callbackUrl=/admin");
+  if (!(await isAdmin())) redirect("/signin/oidc?callbackUrl=/admin");
   const filter = readFilter((await searchParams).show);
   const now = Date.now();
   const all = sharesStore()

@@ -5,7 +5,7 @@ import { isPublic, requestOrigin } from "~/server/auth/hosts";
 
 export const dynamic = "force-dynamic";
 
-/** On lockbox.internal, the admin page. On the public name, one line: a share opens from its own link. */
+/** On the admin URL, the admin page. On the public URL, one line: a share opens from its own link. */
 export default async function Home() {
   const origin = requestOrigin(await headers(), process.env.NODE_ENV === "development");
   if (origin && !isPublic(origin)) redirect("/admin");

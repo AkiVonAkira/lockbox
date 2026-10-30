@@ -8,7 +8,7 @@ const { auth: uncachedAuth, handlers, signIn, signOut } = NextAuth(authConfig);
 
 const auth = cache(uncachedAuth);
 
-/** `next dev` only: act as an admin without Authentik. Next inlines NODE_ENV, so a production build drops it. */
+/** `next dev` only: act as an admin without sign-in. Next inlines NODE_ENV, so a production build drops it. */
 const devAdmin = process.env.NODE_ENV === "development" && Boolean(env.LOCKBOX_DEV_ADMIN);
 
 /** Whether the request comes from a signed-in admin. */

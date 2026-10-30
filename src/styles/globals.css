@@ -14,7 +14,7 @@
   --color-destructive: var(--destructive);
 }
 
-/* Stillwater, from ~/Projects/stillwater/palette.json, as in Ephemeris. Dark only. */
+/* Stillwater palette. Dark only. */
 :root {
   --background: #1d2021;
   --foreground: #ebdbb2;

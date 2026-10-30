@@ -14,7 +14,7 @@ RUN npm run build
 
 FROM node:24.21.0-alpine3.24
 WORKDIR /app
-# Docker's and Coolify's health checks run curl inside the container.
+# The health check runs curl inside the container.
 RUN apk add --no-cache curl
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
@@ -26,7 +26,7 @@ COPY --from=build --chown=node:node /app/.next/static ./.next/static
 # openDb applies these at startup, from the working directory.
 COPY --chown=node:node drizzle ./drizzle
 COPY --chown=node:node scripts/backup.mjs ./scripts/backup.mjs
-# A Coolify volume. A new named volume takes this directory's owner, so the app can write to it.
+# A named volume mounted here takes this directory's owner, so the app can write to it.
 RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 3000

@@ -1,0 +1,15 @@
+# Lockbox on one machine: `cp .env.example .env && docker compose up`, then open http://localhost:3000.
+# The database is SQLite in the `lockbox-data` volume; there is no separate database service.
+services:
+  lockbox:
+    build: .
+    image: lockbox:local
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${LOCKBOX_PORT:-3000}:3000"
+    volumes:
+      - lockbox-data:/data
+
+volumes:
+  lockbox-data:

@@ -1,4 +1,4 @@
-import { env } from "~/env";
+import { linkOrigin } from "~/server/auth/hosts";
 
-/** The public link for a share. Viewers outside the LAN can only reach the public name. */
-export const shareUrl = (id: string) => `${env.LOCKBOX_PUBLIC_URL ?? "https://lockbox.kayzel.com"}/s/${id}`;
+/** The public link for a share, on LOCKBOX_PUBLIC_URL. */
+export const shareUrl = (id: string) => `${linkOrigin()}/s/${id}`;

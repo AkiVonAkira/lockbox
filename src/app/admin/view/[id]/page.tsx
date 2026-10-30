@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Preview · Lockbox" };
 /** An admin's look at a share without its PIN. It does not count as a view. */
 export default async function AdminView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!(await isAdmin())) redirect(`/signin/authentik?callbackUrl=/admin/view/${encodeURIComponent(id)}`);
+  if (!(await isAdmin())) redirect(`/signin/oidc?callbackUrl=/admin/view/${encodeURIComponent(id)}`);
   const parsed = ShareId.safeParse(id);
   const share = parsed.success ? sharesStore().peek(parsed.data) : null;
   if (!share) notFound();

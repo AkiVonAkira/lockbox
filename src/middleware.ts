@@ -5,9 +5,9 @@ import { requestOrigin, sameOriginWrite, servedOn } from "~/server/auth/hosts";
 const dev = process.env.NODE_ENV === "development";
 
 /**
- * Answers only on lockbox.internal and lockbox.kayzel.com, so Auth.js, which builds sign-in and callback
- * URLs from the forwarded host and scheme when AUTH_URL is unset, only ever sees those. The proxies
- * hand the container plain HTTP, so this also sets the scheme the browser used. The public name
+ * Answers only on LOCKBOX_ADMIN_URL and LOCKBOX_PUBLIC_URL, so Auth.js, which builds sign-in and callback
+ * URLs from the forwarded host and scheme when AUTH_URL is unset, only ever sees those. A TLS proxy may
+ * hand the container plain HTTP, so this also sets the scheme the browser used. The public URL
  * serves only the PIN pages. Every write but the upload API must come from the page's own origin;
  * the upload API reads only a bearer token, never a cookie.
  */

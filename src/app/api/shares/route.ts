@@ -7,7 +7,7 @@ import { shareUrl } from "~/server/links";
 export const dynamic = "force-dynamic";
 
 /**
- * Creates a share for an agent. LAN only (the middleware 404s it on the public name), and only with
+ * Creates a share for an agent. Admin URL only (the middleware 404s it on the public URL), and only with
  * LOCKBOX_SERVICE_TOKEN as a bearer token. Answers with the link and the PIN, once.
  */
 export async function POST(request: Request) {

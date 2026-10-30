@@ -1,4 +1,4 @@
-// Nightly copy of the database: `node scripts/backup.mjs`, run by a Coolify scheduled task.
+// Nightly copy of the database: `node scripts/backup.mjs`, run on a schedule (cron, or your host's scheduled tasks).
 // Writes lockbox-YYYY-MM-DD.db into LOCKBOX_BACKUP_DIR with VACUUM INTO and keeps the newest 14.
 // The copies hold sealed PINs and items only; they open with LOCKBOX_KEY, which is not in them.
 import Database from "better-sqlite3";
