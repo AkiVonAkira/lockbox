@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { type Item } from "~/domain/share";
-import { frameDocument, readHeight } from "../_lib/frame";
+import { frameDocument, MEASURE_MESSAGE, readHeight } from "../_lib/frame";
 
 const MIN_HEIGHT = 80;
 const MAX_HEIGHT = 20_000;
@@ -24,6 +24,8 @@ function HtmlFrame({ item }: { item: Extract<Item, { kind: "html" }> }) {
       if (next) setHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, next)));
     };
     window.addEventListener("message", onMessage);
+    // Ask again now that the listener is up, in case the frame reported before it was.
+    ref.current?.contentWindow?.postMessage({ type: MEASURE_MESSAGE }, "*");
     return () => window.removeEventListener("message", onMessage);
   }, []);
 

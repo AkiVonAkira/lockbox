@@ -56,9 +56,16 @@ const BASE_CSS =
 /** The message a frame posts to the viewer with its content height. */
 export const HEIGHT_MESSAGE = "lockbox/height";
 
-// Reports the page's height whenever it changes, and opens http(s) links in a new tab rather than
-// inside the frame. The page's own later :root rules still win over the variables.
-const SCRIPT = `(function(){var h;function z(){var r=document.documentElement,v=Math.ceil(r.scrollHeight>r.clientHeight?r.scrollHeight:r.getBoundingClientRect().height);if(v===h)return;h=v;parent.postMessage({type:${JSON.stringify(HEIGHT_MESSAGE)},height:v},"*");}if(window.ResizeObserver){var o=new ResizeObserver(z);o.observe(document.documentElement);document.addEventListener("DOMContentLoaded",function(){if(document.body)o.observe(document.body);});}document.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);document.addEventListener("click",function(e){var l=e.target&&e.target.closest&&e.target.closest("a[href]");if(l&&/^https?:/i.test(l.href)){l.target="_blank";l.rel="noopener noreferrer";}},true);})();`;
+/**
+ * The message the viewer posts to ask a frame for its height again. A server-rendered frame can load
+ * and report before React attaches its listener, so those reports are lost and the frame keeps its
+ * starting height.
+ */
+export const MEASURE_MESSAGE = "lockbox/measure";
+
+// Reports the page's height whenever it changes or the viewer asks, and opens http(s) links in a new
+// tab rather than inside the frame. The page's own later :root rules still win over the variables.
+const SCRIPT = `(function(){var h;function z(){var r=document.documentElement,v=Math.ceil(r.scrollHeight>r.clientHeight?r.scrollHeight:r.getBoundingClientRect().height);if(v===h)return;h=v;parent.postMessage({type:${JSON.stringify(HEIGHT_MESSAGE)},height:v},"*");}window.addEventListener("message",function(e){if(e.source===parent&&e.data&&e.data.type===${JSON.stringify(MEASURE_MESSAGE)}){h=undefined;z();}});if(window.ResizeObserver){var o=new ResizeObserver(z);o.observe(document.documentElement);document.addEventListener("DOMContentLoaded",function(){if(document.body)o.observe(document.body);});}document.addEventListener("DOMContentLoaded",z);window.addEventListener("load",z);document.addEventListener("click",function(e){var l=e.target&&e.target.closest&&e.target.closest("a[href]");if(l&&/^https?:/i.test(l.href)){l.target="_blank";l.rel="noopener noreferrer";}},true);})();`;
 
 const HEAD =
   '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
